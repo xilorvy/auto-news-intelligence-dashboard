@@ -1,0 +1,14 @@
+{
+  "name": "auto-news-intelligence-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/live-server.mjs",
+    "dev": "python -m http.server 4173",
+    "live": "node scripts/live-server.mjs",
+    "scrape": "node scripts/scrape-news.mjs",
+    "scrape:watch": "node scripts/scrape-news.mjs --watch",
+    "briefing": "node scripts/scrape-news.mjs --briefing"
+  }
+}
