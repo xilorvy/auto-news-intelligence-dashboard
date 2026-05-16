@@ -5,7 +5,11 @@ const feeds = [
   "https://feeds.bbci.co.uk/news/world/rss.xml",
   "https://www.aljazeera.com/xml/rss/all.xml",
   "https://cointelegraph.com/rss",
-  "https://www.investing.com/rss/news_25.rss"
+  "https://www.investing.com/rss/news_25.rss",
+  "https://news.google.com/rss/search?q=China%20Taiwan%20geopolitics%20when:2d&hl=en-US&gl=US&ceid=US:en",
+  "https://news.google.com/rss/search?q=Nvidia%20semiconductor%20Taiwan%20when:2d&hl=en-US&gl=US&ceid=US:en",
+  "https://news.google.com/rss/search?q=Bitcoin%20crypto%20market%20when:2d&hl=en-US&gl=US&ceid=US:en",
+  "https://news.google.com/rss/search?q=oil%20gold%20market%20geopolitics%20when:2d&hl=en-US&gl=US&ceid=US:en"
 ];
 
 const bullishWords = ["rally", "gain", "surge", "eases", "deal", "growth", "approval", "inflow", "rebound", "record"];
@@ -22,6 +26,7 @@ const outputPath = path.join(process.cwd(), "data", "news.json");
 const briefingMode = process.argv.includes("--briefing");
 const watchMode = process.argv.includes("--watch");
 const watchIntervalMs = Number(process.env.SCRAPE_INTERVAL_MS ?? 60000);
+const maxStoryAgeHours = Number(process.env.MAX_STORY_AGE_HOURS ?? 48);
 
 if (watchMode) {
   await scrapeOnce();
@@ -36,11 +41,12 @@ if (watchMode) {
 
 async function scrapeOnce() {
   const rawItems = (await Promise.allSettled(feeds.map(readFeed))).flatMap((result) => (result.status === "fulfilled" ? result.value : []));
-  const stories = rawItems
-    .map(normalizeStory)
-    .filter((story) => story.tags.length > 0)
-    .sort((a, b) => Math.abs(b.score) - Math.abs(a.score))
-    .slice(0, 24);
+  const normalized = dedupeStories(rawItems.map(normalizeStory).filter((story) => story.tags.length > 0));
+  const freshStories = normalized.filter((story) => storyAgeHours(story) <= maxStoryAgeHours);
+  const storyPool = freshStories.length >= 12 ? freshStories : normalized.filter((story) => storyAgeHours(story) <= 168);
+  const stories = storyPool
+    .sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt) || Math.abs(b.score) - Math.abs(a.score))
+    .slice(0, 32);
   const fearGreed = await buildFearGreed(stories);
 
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
@@ -53,16 +59,21 @@ async function readFeed(url) {
   const response = await fetch(url, { headers: { "user-agent": "AutoNewsIntelligence/0.1" } });
   if (!response.ok) throw new Error(`Failed ${url}: ${response.status}`);
   const xml = await response.text();
-  return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].map((match) => parseItem(match[1], url));
+  const itemMatches = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)];
+  const entryMatches = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)];
+  return [...itemMatches, ...entryMatches].map((match) => parseItem(match[1], url));
 }
 
 function parseItem(xml, sourceUrl) {
+  const itemUrl = clean(readTag(xml, "link")) || clean(readHref(xml));
+  const source = clean(readTag(xml, "source")) || new URL(sourceUrl).hostname.replace("www.", "");
+
   return {
     title: clean(readTag(xml, "title")),
     summary: clean(readTag(xml, "description")),
-    url: clean(readTag(xml, "link")),
-    publishedAt: clean(readTag(xml, "pubDate")) || new Date().toISOString(),
-    source: new URL(sourceUrl).hostname.replace("www.", "")
+    url: itemUrl,
+    publishedAt: clean(readTag(xml, "pubDate")) || clean(readTag(xml, "published")) || clean(readTag(xml, "updated")) || new Date().toISOString(),
+    source
   };
 }
 
@@ -71,14 +82,27 @@ function readTag(xml, tag) {
   return match?.[1] ?? "";
 }
 
+function readHref(xml) {
+  const match = xml.match(/<link[^>]+href=["']([^"']+)["'][^>]*>/i);
+  return match?.[1] ?? "";
+}
+
 function clean(value) {
   return value
     .replace(/<!\[CDATA\[|\]\]>/g, "")
-    .replace(/<[^>]+>/g, " ")
     .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\u00e2\u20ac\u02dc|\u00e2\u20ac\u2122/g, "'")
+    .replace(/\u00e2\u20ac\u0153|\u00e2\u20ac\u009d/g, '"')
+    .replace(/\u00e2\u20ac\u201c|\u00e2\u20ac\u201d/g, "-")
+    .replace(/â€˜|â€™/g, "'")
+    .replace(/â€œ|â€/g, '"')
     .replace(/â€™/g, "'")
     .replace(/â€œ|â€/g, '"')
     .replace(/â€"/g, "-")
@@ -101,6 +125,20 @@ function normalizeStory(item) {
     tags,
     impacts: inferImpacts(text, score)
   };
+}
+
+function dedupeStories(items) {
+  const seen = new Set();
+  return items.filter((item) => {
+    const key = item.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function storyAgeHours(story) {
+  return (Date.now() - Date.parse(story.publishedAt)) / 36e5;
 }
 
 function scoreText(text) {

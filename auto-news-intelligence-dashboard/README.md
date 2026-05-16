@@ -51,6 +51,7 @@ Command ini update `data/news.json` dan print email briefing harian ke terminal.
 
 - Dashboard menerima Server-Sent Events dari `/events`, lalu auto-refresh tiap 10 detik sebagai fallback.
 - Live server scrape RSS tiap 60 detik. Bisa diubah dengan env `SCRAPE_INTERVAL_MS`.
+- Scraper default memprioritaskan berita 48 jam terakhir. Bisa diubah dengan env `MAX_STORY_AGE_HOURS`.
 - Fear & Greed ikut disimpan di `data/news.json` pada field `fearGreed`.
 - Overall trend per sector dihitung langsung di dashboard dari headline score dan impact map terbaru.
 - Kalau scrape belum jalan atau network gagal, UI pakai scenario fallback supaya dashboard tetap kebaca.
