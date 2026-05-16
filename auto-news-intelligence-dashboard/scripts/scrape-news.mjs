@@ -48,9 +48,10 @@ async function scrapeOnce() {
     .sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt) || Math.abs(b.score) - Math.abs(a.score))
     .slice(0, 32);
   const fearGreed = await buildFearGreed(stories);
+  const marketSignals = await buildMarketSignals();
 
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
-  await fs.writeFile(outputPath, JSON.stringify({ generatedAt: new Date().toISOString(), stories, fearGreed }, null, 2));
+  await fs.writeFile(outputPath, JSON.stringify({ generatedAt: new Date().toISOString(), stories, fearGreed, marketSignals }, null, 2));
   console.log(`Saved ${stories.length} intelligence stories to ${outputPath}`);
   return stories;
 }
@@ -242,6 +243,117 @@ function fearGreedLabel(value) {
   if (value <= 55) return "Neutral";
   if (value <= 74) return "Greed";
   return "Extreme Greed";
+}
+
+async function buildMarketSignals() {
+  return {
+    btc: await readBtcPriceTrend()
+  };
+}
+
+async function readBtcPriceTrend() {
+  const binance = await readBtcFromBinance();
+  if (binance) return binance;
+
+  const coinGecko = await readBtcFromCoinGecko();
+  if (coinGecko) return coinGecko;
+
+  return {
+    price: null,
+    ma20: null,
+    ma50: null,
+    dailyReturn: null,
+    sevenDayReturn: null,
+    prior20Low: null,
+    breakdown: false,
+    trend: "Unavailable",
+    score: 0,
+    source: "Unavailable",
+    updatedAt: new Date().toISOString()
+  };
+}
+
+async function readBtcFromBinance() {
+  try {
+    const response = await fetch("https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=60", {
+      headers: { "user-agent": "AutoNewsIntelligence/0.1" }
+    });
+    if (!response.ok) throw new Error(`BTC price trend failed: ${response.status}`);
+    const candles = await response.json();
+    const closes = candles.map((candle) => Number(candle[4])).filter(Number.isFinite);
+    if (closes.length < 30) throw new Error("Not enough BTC candles");
+
+    const close = closes.at(-1);
+    const previousClose = closes.at(-2);
+    const ma20 = average(closes.slice(-20));
+    const ma50 = average(closes.slice(-50));
+    const prior20Low = Math.min(...closes.slice(-21, -1));
+    const sevenDayReturn = ((close - closes.at(-8)) / closes.at(-8)) * 100;
+    const dailyReturn = ((close - previousClose) / previousClose) * 100;
+    const breakdown = close < ma20 && close < prior20Low;
+    const trend = breakdown ? "Breakdown" : close > ma20 && ma20 > ma50 ? "Uptrend" : close < ma20 ? "Weakening" : "Sideways";
+    const score = breakdown ? -70 : trend === "Weakening" ? -35 : trend === "Uptrend" ? 55 : 0;
+
+    return {
+      price: Math.round(close),
+      ma20: Math.round(ma20),
+      ma50: Math.round(ma50),
+      dailyReturn: round(dailyReturn),
+      sevenDayReturn: round(sevenDayReturn),
+      prior20Low: Math.round(prior20Low),
+      breakdown,
+      trend,
+      score,
+      source: "Binance BTCUSDT daily candles",
+      updatedAt: new Date(Number(candles.at(-1)[6])).toISOString()
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function readBtcFromCoinGecko() {
+  try {
+    const response = await fetch("https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=90&interval=daily", {
+      headers: { "user-agent": "AutoNewsIntelligence/0.1" }
+    });
+    if (!response.ok) throw new Error(`BTC price trend failed: ${response.status}`);
+    const payload = await response.json();
+    const prices = payload.prices ?? [];
+    const closes = prices.map(([, price]) => Number(price)).filter(Number.isFinite);
+    if (closes.length < 30) throw new Error("Not enough BTC prices");
+
+    const close = closes.at(-1);
+    const previousClose = closes.at(-2);
+    const ma20 = average(closes.slice(-20));
+    const ma50 = average(closes.slice(-50));
+    const prior20Low = Math.min(...closes.slice(-21, -1));
+    const sevenDayReturn = ((close - closes.at(-8)) / closes.at(-8)) * 100;
+    const dailyReturn = ((close - previousClose) / previousClose) * 100;
+    const breakdown = close < ma20 && close < prior20Low;
+    const trend = breakdown ? "Breakdown" : close > ma20 && ma20 > ma50 ? "Uptrend" : close < ma20 ? "Weakening" : "Sideways";
+    const score = breakdown ? -70 : trend === "Weakening" ? -35 : trend === "Uptrend" ? 55 : 0;
+
+    return {
+      price: Math.round(close),
+      ma20: Math.round(ma20),
+      ma50: Math.round(ma50),
+      dailyReturn: round(dailyReturn),
+      sevenDayReturn: round(sevenDayReturn),
+      prior20Low: Math.round(prior20Low),
+      breakdown,
+      trend,
+      score,
+      source: "CoinGecko BTC daily market chart",
+      updatedAt: new Date(prices.at(-1)[0]).toISOString()
+    };
+  } catch {
+    return null;
+  }
+}
+
+function round(value) {
+  return Math.round(value * 100) / 100;
 }
 
 function hasTerm(text, term) {

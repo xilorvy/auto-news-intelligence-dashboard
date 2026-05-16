@@ -41,6 +41,7 @@ let stories = [];
 let activeFilter = "all";
 let latestGeneratedAt = null;
 let fearGreed = null;
+let marketSignals = null;
 const realtimeIntervalMs = 10000;
 let realtimeSource = null;
 
@@ -65,6 +66,7 @@ const els = {
   goldFearDate: document.querySelector("#goldFearDate"),
   goldFearMeter: document.querySelector("#goldFearMeter"),
   sectorGrid: document.querySelector("#sectorGrid"),
+  priceGrid: document.querySelector("#priceGrid"),
   watchlist: document.querySelector("#watchlist"),
   impactGrid: document.querySelector("#impactGrid"),
   toast: document.querySelector("#toast")
@@ -77,6 +79,7 @@ async function loadStories() {
     const payload = await response.json();
     stories = Array.isArray(payload.stories) && payload.stories.length ? payload.stories : fallbackStories;
     fearGreed = payload.fearGreed ?? buildFallbackFearGreed(stories);
+    marketSignals = payload.marketSignals ?? null;
     latestGeneratedAt = payload.generatedAt ?? new Date().toISOString();
     if (!realtimeSource) {
       els.liveStatus.textContent = `Live polling every ${Math.round(realtimeIntervalMs / 1000)}s`;
@@ -84,6 +87,7 @@ async function loadStories() {
   } catch {
     stories = fallbackStories;
     fearGreed = buildFallbackFearGreed(stories);
+    marketSignals = null;
     latestGeneratedAt = new Date().toISOString();
     els.liveStatus.textContent = "Demo fallback feed";
   }
@@ -120,6 +124,7 @@ function render() {
   renderWatchlist();
   renderFearGreed();
   renderSectorTrends();
+  renderPriceConfirmation();
   renderFeed();
   renderImpactGrid({ risk, equities, crypto, commodities });
 }
@@ -187,7 +192,7 @@ function buildSectorTrends() {
   return [
     sectorTrend("Geopolitics", ["China-Taiwan"], "score", "Headline tension and diplomatic risk."),
     sectorTrend("Semiconductors", ["Nvidia", "Semiconductors"], "equities", "AI chip supply chain and export-control exposure."),
-    sectorTrend("Crypto", ["Crypto"], "crypto", "BTC/ETH momentum from risk appetite and liquidity."),
+    cryptoSectorTrend(),
     sectorTrend("Oil", ["Oil"], "oil", "Energy supply risk and macro inflation pressure."),
     sectorTrend("Gold", ["Gold"], "gold", "Safe-haven demand and stress hedging."),
     sectorTrend("Equities", ["Nvidia", "China-Taiwan", "Crypto", "Oil", "Gold"], "equities", "Broad market beta from all tracked headline clusters.")
@@ -207,6 +212,76 @@ function sectorTrend(name, tags, impactKey, note) {
     note: `${note} ${matched.length} tracked headlines.`,
     className: score > 15 ? "trend-up" : score < -15 ? "trend-down" : "trend-flat"
   };
+}
+
+function cryptoSectorTrend() {
+  const news = sectorTrend("Crypto", ["Crypto"], "crypto", "News momentum from crypto headlines.");
+  const btc = marketSignals?.btc;
+
+  if (!btc || btc.trend === "Unavailable") {
+    return {
+      ...news,
+      note: `${news.note} BTC price confirmation unavailable.`
+    };
+  }
+
+  const priceClassName = btc.score > 15 ? "trend-up" : btc.score < -15 ? "trend-down" : "trend-flat";
+  const divergence = Math.sign(news.score) !== Math.sign(btc.score) && Math.abs(news.score) > 15 && Math.abs(btc.score) > 15;
+  const finalScore = Math.round(news.score * 0.45 + btc.score * 0.55);
+
+  if (divergence) {
+    return {
+      name: "Crypto",
+      score: finalScore,
+      trend: "Divergence",
+      note: `News ${news.trend.toLowerCase()} (${signed(news.score)}), BTC price ${btc.trend.toLowerCase()} (${signed(btc.score)}). Treat signal as caution.`,
+      className: "trend-flat"
+    };
+  }
+
+  return {
+    name: "Crypto",
+    score: finalScore,
+    trend: trendLabel(finalScore),
+    note: `News ${news.trend.toLowerCase()} (${signed(news.score)}), BTC price ${btc.trend.toLowerCase()} at ${formatUsd(btc.price)}. 7d ${signedPercent(btc.sevenDayReturn)}.`,
+    className: priceClassName
+  };
+}
+
+function renderPriceConfirmation() {
+  const btc = marketSignals?.btc;
+
+  if (!btc || btc.trend === "Unavailable") {
+    els.priceGrid.innerHTML = `
+      <article class="price-card">
+        <small>BTC Price Trend</small>
+        <strong class="trend-flat">Unavailable</strong>
+        <p>Price confirmation feed is not available yet.</p>
+      </article>
+    `;
+    return;
+  }
+
+  const trendClass = btc.score > 15 ? "trend-up" : btc.score < -15 ? "trend-down" : "trend-flat";
+  const breakdownText = btc.breakdown ? "Below MA20 and prior 20-day low." : "No 20-day breakdown detected.";
+  const cards = [
+    ["BTC Price", formatUsd(btc.price), btc.source],
+    ["BTC Trend", btc.trend, breakdownText],
+    ["MA20 / MA50", `${formatUsd(btc.ma20)} / ${formatUsd(btc.ma50)}`, "Daily moving average context."],
+    ["7D / 1D Return", `${signedPercent(btc.sevenDayReturn)} / ${signedPercent(btc.dailyReturn)}`, `Updated ${dailyDate(btc.updatedAt)}.`]
+  ];
+
+  els.priceGrid.innerHTML = cards
+    .map(
+      ([label, value, note]) => `
+        <article class="price-card">
+          <small>${label}</small>
+          <strong class="${trendClass}">${value}</strong>
+          <p>${note}</p>
+        </article>
+      `
+    )
+    .join("");
 }
 
 function trendLabel(score) {
@@ -282,6 +357,16 @@ function renderImpactGrid(scores) {
 
 function formatDate(value) {
   return new Intl.DateTimeFormat([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+}
+
+function formatUsd(value) {
+  if (!Number.isFinite(value)) return "--";
+  return new Intl.NumberFormat([], { maximumFractionDigits: 0, style: "currency", currency: "USD" }).format(value);
+}
+
+function signedPercent(value) {
+  if (!Number.isFinite(value)) return "--";
+  return `${value > 0 ? "+" : ""}${value}%`;
 }
 
 function dailyDate(value) {

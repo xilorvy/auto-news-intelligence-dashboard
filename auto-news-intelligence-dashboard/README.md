@@ -16,6 +16,8 @@ Dashboard juga menghitung overall trend per sector:
 - Gold
 - Equities
 
+Crypto sector trend now blends news momentum with BTC price confirmation. If headlines are bullish but BTC price action is weak or breaking down, the dashboard marks Crypto as divergence/caution instead of a clean uptrend.
+
 ## Run
 
 ```powershell
@@ -54,5 +56,6 @@ Command ini update `data/news.json` dan print email briefing harian ke terminal.
 - Scraper default memprioritaskan berita 48 jam terakhir. Bisa diubah dengan env `MAX_STORY_AGE_HOURS`.
 - Fear & Greed ikut disimpan di `data/news.json` pada field `fearGreed`.
 - Overall trend per sector dihitung langsung di dashboard dari headline score dan impact map terbaru.
+- BTC price confirmation uses Binance daily candles first, then CoinGecko daily market chart as fallback.
 - Kalau scrape belum jalan atau network gagal, UI pakai scenario fallback supaya dashboard tetap kebaca.
 - Scoring sekarang keyword-based agar ringan dan bisa jalan tanpa API key. Nanti bisa diganti OpenAI classification/summarization untuk hasil lebih tajam.

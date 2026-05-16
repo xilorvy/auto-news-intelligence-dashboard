@@ -112,7 +112,8 @@ h3 {
 .workspace,
 .impact-grid,
 .fear-greed-grid,
-.sector-grid {
+.sector-grid,
+.price-grid {
   display: grid;
   gap: 12px;
 }
@@ -131,6 +132,8 @@ h3 {
 .fear-card,
 .sector-board,
 .sector-card,
+.price-board,
+.price-card,
 .story {
   background: rgba(24, 29, 34, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -166,12 +169,14 @@ h3 {
 .feed-panel,
 .impact-board,
 .fear-greed-board,
-.sector-board {
+.sector-board,
+.price-board {
   padding: 18px;
 }
 
 .fear-greed-board,
-.sector-board {
+.sector-board,
+.price-board {
   margin-top: 12px;
 }
 
@@ -265,6 +270,30 @@ h3 {
 
 .trend-flat {
   color: var(--amber);
+}
+
+.price-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.price-card {
+  min-height: 126px;
+  padding: 14px;
+}
+
+.price-card small {
+  color: var(--muted);
+}
+
+.price-card strong {
+  display: block;
+  font-size: 1.8rem;
+  margin: 10px 0 4px;
+}
+
+.price-card p {
+  color: #cbd6dc;
+  line-height: 1.4;
 }
 
 .panel-head {
@@ -461,7 +490,8 @@ h3 {
   .workspace,
   .impact-grid,
   .fear-greed-grid,
-  .sector-grid {
+  .sector-grid,
+  .price-grid {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -486,7 +516,8 @@ h3 {
   .workspace,
   .impact-grid,
   .fear-greed-grid,
-  .sector-grid {
+  .sector-grid,
+  .price-grid {
     grid-template-columns: 1fr;
   }
 
