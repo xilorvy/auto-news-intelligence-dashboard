@@ -27,6 +27,7 @@ const briefingMode = process.argv.includes("--briefing");
 const watchMode = process.argv.includes("--watch");
 const watchIntervalMs = Number(process.env.SCRAPE_INTERVAL_MS ?? 60000);
 const maxStoryAgeHours = Number(process.env.MAX_STORY_AGE_HOURS ?? 48);
+const maxCachedSignalAgeHours = Number(process.env.MAX_CACHED_SIGNAL_AGE_HOURS ?? 24);
 
 if (watchMode) {
   await scrapeOnce();
@@ -40,6 +41,7 @@ if (watchMode) {
 }
 
 async function scrapeOnce() {
+  const previousData = await readPreviousData();
   const rawItems = (await Promise.allSettled(feeds.map(readFeed))).flatMap((result) => (result.status === "fulfilled" ? result.value : []));
   const normalized = dedupeStories(rawItems.map(normalizeStory).filter((story) => story.tags.length > 0));
   const freshStories = normalized.filter((story) => storyAgeHours(story) <= maxStoryAgeHours);
@@ -48,12 +50,20 @@ async function scrapeOnce() {
     .sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt) || Math.abs(b.score) - Math.abs(a.score))
     .slice(0, 32);
   const fearGreed = await buildFearGreed(stories);
-  const marketSignals = await buildMarketSignals();
+  const marketSignals = await buildMarketSignals(previousData);
 
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await fs.writeFile(outputPath, JSON.stringify({ generatedAt: new Date().toISOString(), stories, fearGreed, marketSignals }, null, 2));
   console.log(`Saved ${stories.length} intelligence stories to ${outputPath}`);
   return stories;
+}
+
+async function readPreviousData() {
+  try {
+    return JSON.parse(await fs.readFile(outputPath, "utf8"));
+  } catch {
+    return null;
+  }
 }
 
 async function readFeed(url) {
@@ -245,18 +255,21 @@ function fearGreedLabel(value) {
   return "Extreme Greed";
 }
 
-async function buildMarketSignals() {
+async function buildMarketSignals(previousData) {
   return {
-    btc: await readBtcPriceTrend()
+    btc: await readBtcPriceTrend(previousData)
   };
 }
 
-async function readBtcPriceTrend() {
+async function readBtcPriceTrend(previousData) {
   const binance = await readBtcFromBinance();
   if (binance) return binance;
 
   const coinGecko = await readBtcFromCoinGecko();
   if (coinGecko) return coinGecko;
+
+  const cached = cachedBtcSignal(previousData);
+  if (cached) return cached;
 
   return {
     price: null,
@@ -270,6 +283,20 @@ async function readBtcPriceTrend() {
     score: 0,
     source: "Unavailable",
     updatedAt: new Date().toISOString()
+  };
+}
+
+function cachedBtcSignal(previousData) {
+  const btc = previousData?.marketSignals?.btc;
+  if (!btc || !Number.isFinite(btc.price) || !btc.updatedAt) return null;
+
+  const ageHours = (Date.now() - Date.parse(btc.updatedAt)) / 36e5;
+  if (!Number.isFinite(ageHours) || ageHours > maxCachedSignalAgeHours) return null;
+
+  return {
+    ...btc,
+    stale: true,
+    source: `${btc.source} (cached ${Math.max(1, Math.round(ageHours))}h ago)`
   };
 }
 

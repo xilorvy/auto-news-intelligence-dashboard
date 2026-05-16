@@ -243,7 +243,7 @@ function cryptoSectorTrend() {
     name: "Crypto",
     score: finalScore,
     trend: trendLabel(finalScore),
-    note: `News ${news.trend.toLowerCase()} (${signed(news.score)}), BTC price ${btc.trend.toLowerCase()} at ${formatUsd(btc.price)}. 7d ${signedPercent(btc.sevenDayReturn)}.`,
+    note: `News ${news.trend.toLowerCase()} (${signed(news.score)}), BTC price ${btc.trend.toLowerCase()} at ${formatUsd(btc.price)}. 7d ${signedPercent(btc.sevenDayReturn)}.${btc.stale ? " Using cached price data." : ""}`,
     className: priceClassName
   };
 }
@@ -264,8 +264,9 @@ function renderPriceConfirmation() {
 
   const trendClass = btc.score > 15 ? "trend-up" : btc.score < -15 ? "trend-down" : "trend-flat";
   const breakdownText = btc.breakdown ? "Below MA20 and prior 20-day low." : "No 20-day breakdown detected.";
+  const staleText = btc.stale ? "Cached fallback. Live API temporarily unavailable." : btc.source;
   const cards = [
-    ["BTC Price", formatUsd(btc.price), btc.source],
+    ["BTC Price", formatUsd(btc.price), staleText],
     ["BTC Trend", btc.trend, breakdownText],
     ["MA20 / MA50", `${formatUsd(btc.ma20)} / ${formatUsd(btc.ma50)}`, "Daily moving average context."],
     ["7D / 1D Return", `${signedPercent(btc.sevenDayReturn)} / ${signedPercent(btc.dailyReturn)}`, `Updated ${dailyDate(btc.updatedAt)}.`]

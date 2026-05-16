@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-16T07:58:20.781Z",
+  "generatedAt": "2026-05-16T08:07:20.607Z",
   "stories": [
     {
       "title": "CLARITY Act Advances in Senate Banking Committee, Impact on Crypto Market - Intellectia AI",
@@ -492,6 +492,24 @@
       }
     },
     {
+      "title": "U.S. Senate crypto market structure bill faces hurdles after committee advance - Traders Union",
+      "summary": "U.S. Senate crypto market structure bill faces hurdles after committee advance Traders Union",
+      "url": "https://news.google.com/rss/articles/CBMingFBVV95cUxOMVBDLWI1NzB5OTVVZGRUZzFGQ1pGdU9xZmpWMEVNSEliRTJhU1RIV2tvaVZNb3Z1M0RXcGxyWkdlSUlLdXJ3RXZucXlCNm1hN0puNEp6U09wRHl5WHZJamdKY3ZkSnpPT2Jfc0VteFAxclhTTjYzQ08tY09JQnM5aURpbUgxNGRRZGNoZ0E1V1Rxb2h6Vlh1N095aUZtQQ?oc=5",
+      "publishedAt": "2026-05-15T21:01:11.000Z",
+      "source": "Traders Union",
+      "sentiment": "neutral",
+      "score": 0,
+      "tags": [
+        "Crypto"
+      ],
+      "impacts": {
+        "equities": 0,
+        "crypto": 28,
+        "oil": 0,
+        "gold": 0
+      }
+    },
+    {
       "title": "What did Trump and Xi discuss during the China summit?",
       "summary": "US President Donald Trump concluded a two-day summit in Beijing with Chinese leader Xi Jinping.",
       "url": "https://www.aljazeera.com/video/newsfeed/2026/5/15/what-did-trump-and-xi-discuss-during-the-china-summit-2?traffic_source=rss",
@@ -562,24 +580,6 @@
         "oil": 0,
         "gold": 0
       }
-    },
-    {
-      "title": "Rick Rule’s Oil Rationing by Price: Key Insights for 2025 - Discovery Alert",
-      "summary": "Rick Rule’s Oil Rationing by Price: Key Insights for 2025 Discovery Alert",
-      "url": "https://news.google.com/rss/articles/CBMikgFBVV95cUxPTFM2QUZ3Z2hFS3JnaE1yRUp1Q3U0cHVUems3dlZmMXp1cWE0NTRzUS01RzNTYUJZZ0c3WXQ5SGt4cERFdWdEc0NzNE0zRERER0dpU1dWdlJqRlpjMWhJTUJqOEF6N0dPcXN2ZXI3M0Vpa19qU25hZl9nWGRDZnlVLXFSM3JTRUxaaW1iZXd6bGQxZw?oc=5",
-      "publishedAt": "2026-05-15T20:03:34.000Z",
-      "source": "Discovery Alert",
-      "sentiment": "neutral",
-      "score": 0,
-      "tags": [
-        "Oil"
-      ],
-      "impacts": {
-        "equities": 0,
-        "crypto": 0,
-        "oil": 34,
-        "gold": 0
-      }
     }
   ],
   "fearGreed": {
@@ -593,22 +593,22 @@
       "value": 59,
       "label": "Greed",
       "source": "Gold news and safe-haven demand model",
-      "updatedAt": "2026-05-16T07:58:08.827Z"
+      "updatedAt": "2026-05-16T08:07:09.182Z"
     }
   },
   "marketSignals": {
     "btc": {
-      "price": 78317,
-      "ma20": 79314,
-      "ma50": 75200,
-      "dailyReturn": -0.95,
-      "sevenDayReturn": -2.93,
+      "price": 78338,
+      "ma20": 79315,
+      "ma50": 75201,
+      "dailyReturn": -0.92,
+      "sevenDayReturn": -2.9,
       "prior20Low": 75775,
       "breakdown": false,
       "trend": "Weakening",
       "score": -35,
       "source": "CoinGecko BTC daily market chart",
-      "updatedAt": "2026-05-16T07:58:19.000Z"
+      "updatedAt": "2026-05-16T08:07:00.000Z"
     }
   }
 }
